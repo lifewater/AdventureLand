@@ -1,5 +1,5 @@
 load_code('codecostmeter');
-require_code('general');
+load_code('general');
 
 const inventoryWhitelist = ['hpot1','mpot1', 'stand0', 'stand1', 'tracker', 'pickaxe', 'rod'];
 const codeBase = 'master';
@@ -16,27 +16,30 @@ managePartyLoop();
 
 
 
-if (character.ctype == "Warrior") {
+if (character.ctype == "warrior") {
     lootLoop();
     ripLoop();
     regenLoop();
     moveLoop();
     attackLoop();
+    merchantDump();
 }
-if (character.ctype == "Priest") {
+if (character.ctype == "priest") {
     lootLoop();
     ripLoop();
     regenLoop();
     moveLoop();
     healLoop();
     attackLoop();
+    merchantDump();
 }
-if (character.ctype == "Mage") {
+if (character.ctype == "mage") {
     lootLoop();
     ripLoop();
     regenLoop();
     moveLoop();
     attackLoop();
+    merchantDump();
 }
 
 
