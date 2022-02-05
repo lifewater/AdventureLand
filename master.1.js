@@ -1,12 +1,37 @@
 load_code('codecostmeter');
 load_code('general');
 
+party = [
+    {
+	    name: "Dough",
+	    ratio_hp: 0,
+		lost_hp: null
+	},
+	{
+		name: "LifeWater",
+	    ratio_hp: 0,
+		lost_hp: null
+	},
+	{
+		name: "Chasun",
+	    ratio_hp: 0,
+		lost_hp: null
+	}];
 const inventoryWhitelist = ['hpot1','mpot1', 'stand0', 'stand1', 'tracker', 'pickaxe', 'rod'];
 const codeBase = 'master';
-const farmMob = 'xscorpion'
+const farmMob = 'xscorpion';
 
-const healMode = 'party'
+const moveMode = 'farm';
+
+const healMode = 'party';
+const healThresholdRaw = 1500; // Minumum Lost HP required before Healing
+const healThresholdRatio = .75; // c.hp / c.max_hp -> 75 / 100 = .75
+
 const allowMonsterHunt = false;
+
+var target;
+
+tank = "Dough";
 
 start_character('Dough', codeBase);
 start_character('LifeWater', codeBase);
@@ -17,6 +42,7 @@ managePartyLoop();
 
 
 if (character.ctype == "warrior") {
+    logit("Loading Warrior " + character.name);
     lootLoop();
     ripLoop();
     regenLoop();
@@ -25,15 +51,17 @@ if (character.ctype == "warrior") {
     merchantDump();
 }
 if (character.ctype == "priest") {
+    logit("Loading Priest " + character.name);
     lootLoop();
     ripLoop();
     regenLoop();
     moveLoop();
     healLoop();
-    attackLoop();
+    //attackLoop();
     merchantDump();
 }
 if (character.ctype == "mage") {
+    logit("Loading Mage " + character.name);
     lootLoop();
     ripLoop();
     regenLoop();
@@ -152,6 +180,7 @@ async function regenLoop() {
             reduce_cooldown("use_hp", Math.min(...parent.pings))
         }
     } catch (e) {
+        console.log("Error occured in regenLoop()")
         console.error(e)
     }
     setTimeout(async () => { regenLoop() }, Math.max(100, ms_to_next_skill("use_hp")))
@@ -180,8 +209,9 @@ async function moveLoop() {
             
             set_message("Move E: " + key);
             target = getTarget(key);
+
             if(!target){
-                log(data.map + " " + data.x + " " + data.y)
+                logit(data.map + " " + data.x + " " + data.y)
                 await smart_move({map:data.map, x:data.x, y:data.y})
             }
             else {
@@ -209,15 +239,15 @@ async function moveLoop() {
 				parent.socket.emit("monsterhunt");
 				mhTarget = character.s.monsterhunt.id;
 				mhCount = character.s.monsterhunt.c;
-				log ("Monster Hunt Accepted");
-				log ("Target: " + mhTarget + " (" + mhCount + ")");
+				logit ("Monster Hunt Accepted");
+				logit ("Target: " + mhTarget + " (" + mhCount + ")");
 				return;
             }
 			else {
 				mhTarget = character.s.monsterhunt.id;
 				mhCount = character.s.monsterhunt.c;
-				log ("Starting Monster Hunt");
-				log ("Target: " + mhTarget + " (" + mhCount + ")");
+				logit ("Starting Monster Hunt");
+				logit ("Target: " + mhTarget + " (" + mhCount + ")");
 				await smart_move(mhTarget);
 				return;
 			}
@@ -227,25 +257,39 @@ async function moveLoop() {
 		//------------------------
 		if (moveMode == "farm") {
 			set_message("Farm");
+            //logit(character.name + ": Farming")
 			
 			// Move to location if we cannot target farmMob
-			tar = get_nearest_monster({"type": farmMob})
-			if (!tar)
+			//target = get_nearest_monster({"type": farmMob})
+            target = getTarget();
+			if (!target)
 				await smart_move(farmMob)
-			
-			// Basic Follow Tank Logic
-			tank = get_player(myPartyLeader);
-			me = get_player("Chasun");
-			
-			if (distance(tank, me) > character.range * .50) {
-				set_message("Find Tank");
-				[cx, cy] = [character.x, cy = character.y];
-				[tx, ty] = [tank.real_x, ty = tank.real_y];
-				move (
-					cx+(tx-cx)+50,
-					cy+(ty-cy)+50
-					);
-			}
+			else {
+                [cx, cy] = [character.x, cy = character.y];
+				[tx, ty] = [target.x, target.y];
+
+                if (character.ctype == "warrior"){
+                    move(cx + (tx - cx)/2, cy + (ty - cy)/2);
+                }
+                
+                if (character.ctype == "mage"){
+                    let tankObj = get_player(tank);
+                    let tankTarget = get_target_of(tankObj);
+                    if (tankTarget){
+                        [tx, ty] = [tankTarget.x, tankTarget.y];
+                        move(cx + (tx - cx) - 20, cy + (ty - cy) - 20);
+                    }
+                }
+                if (character.ctype == "priest"){
+                    tankObj = get_player(tank);
+                    me = get_player("Chasun");
+                    if (tankObj) {
+                        if (distance(tankObj, me) > character.range * .50) {
+                            move (cx + (tx-cx) + 20, cy + (ty-cy) + 20);
+                        }
+                    }
+                }              
+            }
 		}
 		
 		if (moveMode == "phoenix") {
@@ -271,7 +315,7 @@ async function healLoop() {
 		}
 
         // if your not a healer get out of here
-        if (character.ctype != 'Priest')
+        if (character.ctype != 'priest')
             return;
 
         if (healMode == "party") {
@@ -282,6 +326,8 @@ async function healLoop() {
             // Load up party data w/ HP info.
             for (node in party) {
                 partyMember = get_player(party[node].name);
+                if (!partyMember)
+                    continue;
                 party[node].lost_hp = partyMember.max_hp - partyMember.hp;
                 party[node].ratio_hp = partyMember.hp / partyMember.max_hp;
             }
@@ -336,12 +382,33 @@ async function attackLoop() {
             return;
 		}
 		if (target) {
-			if(is_in_range(target, "attack") && can_attack(target)) {
-				set_message("Attacking");
-				await attack(target);
-				reduce_cooldown("attack", Math.min(...parent.pings));
-			}
-		}
+            if (character.ctype == "warrior") {
+			    if(is_in_range(target, "attack") && can_attack(target)) {
+				    await attack(target);
+				    reduce_cooldown("attack", Math.min(...parent.pings));
+			    }
+            }
+
+            if (character.ctype == "mage"){
+                let tankObj = get_player(tank);
+                let tankTarget = get_target_of(tankObj);
+                let targetsTarget = get_target_of(tankTarget);
+			    if(is_in_range(tankTarget, "attack") && can_attack(tankTarget) && tankTarget) {
+				    await attack(tankTarget);
+				    reduce_cooldown("attack", Math.min(...parent.pings));
+			    }
+            }
+
+            if (character.ctype == "priest"){
+                let tankObj = get_player(tank);
+                let tankTarget = get_target_of(tankObj);
+                let targetsTarget = get_target_of(tankTarget)
+			    if(is_in_range(tankTarget, "attack") && can_attack(tankTarget) && tankTarget) {
+				    await attack(tankTarget);
+				    reduce_cooldown("attack", Math.min(...parent.pings));
+			    }
+            }
+        }  
 	}
 	catch (e) {
 		console.log ("Error Encountered in attackLoop()");

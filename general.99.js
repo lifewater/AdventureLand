@@ -11,6 +11,11 @@ function distanceFromEntity(cx, cy, tx, ty)
 	
 }
 
+function logit(msg) {
+	log(msg);
+	console.log(msg);
+}
+
 function kite(tx,ty,cx,cy,angle) {
 	let distanceX = cx - tx;
 	let distanceY = cy - ty;
@@ -38,7 +43,7 @@ function setupQData() {
 			const rolled = Number.parseFloat(`${data.p.nums[3]}${data.p.nums[2]}.${data.p.nums[1]}${data.p.nums[0]}`);
 			//const success = data.p.success;
 
-		log("Chance: " + chance.toFixed(2) + "% Roll: " + rolled);
+		logit("Chance: " + chance.toFixed(2) + "% Roll: " + rolled);
 
 		}
 		
@@ -48,7 +53,7 @@ function setupQData() {
 			const rolled = Number.parseFloat(`${data.p.nums[3]}${data.p.nums[2]}.${data.p.nums[1]}${data.p.nums[0]}`);
 			//const success = data.p.success;
 
-			log("Chance: " + chance.toFixed(2) + "% Roll: " + rolled);
+			logit("Chance: " + chance.toFixed(2) + "% Roll: " + rolled);
 		}
 		});
 	parent.qDataSetup = true;
