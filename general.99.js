@@ -54,14 +54,28 @@ function setupQData() {
 	parent.qDataSetup = true;
 }
 
-function createParty() {
-	if (character.name == myPartyLeader) {
+async function managePartyLoop() {
+    try {
+		if (character.rip) {
+			setTimeout(async () => { managePartyLoop() }, 1000);
+            return;
+		}
+
+		// Merchant will handle group invites 
+		if (character.name == myPartyLeader) {
 			for (let player of myParty) {
 				if (!parent.party_list.includes(player)) {
 					send_party_invite(player);
 				}
 			}
-	}
+		}
+
+    }
+	catch (e) {
+            console.log ("Error Encountered in lootLoop()");
+            console.error(e)
+    }
+	setTimeout(async () => { managePartyLoop() }, 1000);
 }
 
 function fixAddLog()

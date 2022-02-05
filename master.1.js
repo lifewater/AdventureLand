@@ -1,14 +1,81 @@
 load_code('codecostmeter');
 require_code('general');
 
-const codeToRun = 'master';
+const inventoryWhitelist = ['hpot1','mpot1', 'stand0', 'stand1', 'tracker', 'pickaxe', 'rod'];
+const codeBase = 'master';
 const farmMob = 'xscorpion'
 
-ripLoop();
-lootLoop();
-regenLoop();
-moveLoop();
+const healMode = 'party'
+const allowMonsterHunt = false;
 
+start_character('Dough', codeBase);
+start_character('LifeWater', codeBase);
+start_character('Chasun', codeBase);
+
+managePartyLoop();
+
+
+
+if (character.ctype == "Warrior") {
+    lootLoop();
+    ripLoop();
+    regenLoop();
+    moveLoop();
+    attackLoop();
+}
+if (character.ctype == "Priest") {
+    lootLoop();
+    ripLoop();
+    regenLoop();
+    moveLoop();
+    healLoop();
+    attackLoop();
+}
+if (character.ctype == "Mage") {
+    lootLoop();
+    ripLoop();
+    regenLoop();
+    moveLoop();
+    attackLoop();
+}
+
+
+async function merchantDump() {
+    try {
+		if (character.rip) {
+			setTimeout(async () => { merchantDump() }, 250);
+            return;
+		}
+		
+        let merchant = get_player("Bezos");
+
+		if (merchant == null) {
+            setTimeout(async () => { merchantDump() }, 250);
+            return;         
+        }
+
+        let distance = distanceFromEntity(character.x, character.y, merchant.real_x, merchant.real_y);
+
+        if (distance <= 300) {
+            for (let slotNum in character.items){
+                let item = character.items[slotNum];
+
+                if (!item)
+                    continue;
+
+               if(!inventoryWhitelist.includes(item.name)) {
+                   send_item(merchant, slotNum, 9999);
+               }
+
+            }
+        }
+    }
+	catch (e) {
+            console.log ("Error Encountered in merchantDump()");
+            console.error(e)
+            }
+	setTimeout(async () => { merchantDump() }, 250);   
+}
 //------------------------
 // Loot Loop
 //------------------------
@@ -102,7 +169,7 @@ async function moveLoop() {
         for (const key in parent.S) {
             const data = parent.S[key];
             if (!data.live) { continue; }
-            if (key == 'dragold' || key == 'icegolem') { continue; }
+            if (key == 'dragold' || key == 'icegolem' || key =='tiger') { continue; }
             // exclude special event, like 'halloween', or 'egghunt'
             // they are not monster hunts, and require diff logic
             if(typeof data !== "object")  // special events are string type
@@ -115,7 +182,17 @@ async function moveLoop() {
                 await smart_move({map:data.map, x:data.x, y:data.y})
             }
             else {
-                move(target.x, target.y -100);
+                [cx, cy] = [character.x, cy = character.y];
+				[tx, ty] = [target.x, ty = target.y];
+
+                if (character.ctype == "Warrior")
+                    move(cx + (tx - cx)/2, cy + (ty - cy)/2)
+                
+                if (character.ctype == "Mage")
+                    move(cx + (tx - cx)+20, cy + (ty - cy)+ 20)
+
+                if (character.ctype == "Priest")
+                    move(cx + (tx - cx)-20, cy + (ty - cy)-20)
             }
             setTimeout(async () => { moveLoop() }, 250);
             return;
@@ -168,7 +245,7 @@ async function moveLoop() {
 			}
 		}
 		
-		if (moveMode == "follow") {
+		if (moveMode == "phoenix") {
 
 		}
 	}
@@ -190,54 +267,92 @@ async function healLoop() {
             return;
 		}
 
-		if (healMode == "party") {
-			var topPriority;
-			var current;
-			var previous;
-			
-			// Load up party data w/ HP info.
-			for (node in party) {
-				partyMember = get_player(party[node].name);
-				party[node].lost_hp = partyMember.max_hp - partyMember.hp;
-				party[node].ratio_hp = partyMember.hp / partyMember.max_hp;
-			}
-			
-			// Find the highest priority target
-			for (node in party) {
-				
-				if (topPriority === undefined) {
-					topPriority = node;
-					
-					previous = party[node];
-					continue;
-				}
-				
-				if (previous) {
-					current = party[node];
-					if (current.ratio_hp < previous.ratio_hp) {
-						topPriority = node;
-					}
-					previous = current;
-				}
-				
-			}
-			
-			//log ("Priorty: " + party[topPriority].name);
-			
-			// Finally, if the top priority heal target
-			// has lost at least healThresholdRaw hp
-			// then they get a heal
-			if (party[topPriority].lost_hp > healThresholdRaw) {
-				healtarget = get_player(party[topPriority].name);
-				change_target(healtarget);
-				await heal(healtarget);
-				reduce_cooldown("heal", Math.min(parent.pings));
-			}
-		}
+        // if your not a healer get out of here
+        if (character.ctype != 'Priest')
+            return;
+
+        if (healMode == "party") {
+            var topPriority;
+            var current;
+            var previous;
+            
+            // Load up party data w/ HP info.
+            for (node in party) {
+                partyMember = get_player(party[node].name);
+                party[node].lost_hp = partyMember.max_hp - partyMember.hp;
+                party[node].ratio_hp = partyMember.hp / partyMember.max_hp;
+            }
+            
+            // Find the highest priority target
+            for (node in party) {
+                
+                if (topPriority === undefined) {
+                    topPriority = node;
+                    
+                    previous = party[node];
+                    continue;
+                }
+                
+                if (previous) {
+                    current = party[node];
+                    if (current.ratio_hp < previous.ratio_hp) {
+                        topPriority = node;
+                    }
+                    previous = current;
+                }
+                
+            }
+            
+            //log ("Priorty: " + party[topPriority].name);
+            
+            // Finally, if the top priority heal target
+            // has lost at least healThresholdRaw hp
+            // then they get a heal
+            if (party[topPriority].lost_hp > healThresholdRaw) {
+                healtarget = get_player(party[topPriority].name);
+                change_target(healtarget);
+                await heal(healtarget);
+                reduce_cooldown("heal", Math.min(parent.pings));
+            }
+        }
 	}
 	catch (e) {
 		console.log ("Error Encountered in healLoop()");
 		console.error(e)
 		}
 	setTimeout(async () => { healLoop() }, Math.max(1, ms_to_next_skill("heal")));
+}
+
+//------------------------
+// Attack Loop
+//------------------------
+async function attackLoop() {
+    try {
+		if (character.rip) {
+			setTimeout(async () => { attackLoop() }, Math.max(1, ms_to_next_skill("attack")));
+            return;
+		}
+		if (target) {
+			if(is_in_range(target, "attack") && can_attack(target)) {
+				set_message("Attacking");
+				await attack(target);
+				reduce_cooldown("attack", Math.min(...parent.pings));
+			}
+		}
+	}
+	catch (e) {
+		console.log ("Error Encountered in attackLoop()");
+		console.error(e)
+		}
+	setTimeout(async () => { attackLoop() }, Math.max(1, ms_to_next_skill("attack")));
+}
+
+
+//  Function override to accept party invites
+//  This will only work if your not my designed
+//  leader: myPartyLeader
+function on_party_invite(name){
+    if (name == myPartyLeader && character.name != myPartyLeader){
+        accept_party_invite(name)
+    }
 }
