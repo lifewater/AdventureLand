@@ -1,13 +1,51 @@
 load_code('codecostmeter');
 load_code('general');
 load_code('kite');
+load_code('events');
+load_code('monsterhunts');
+load_code('farming')
 
 const codeBase = 'master';
+const states = {};
+
+states.priest = { 
+    active: false,
+    events: false,
+    monsterhunt: false,
+    movement: true,
+    attack: true,
+    heal: true,
+    movementMode: 'farm',
+    attackMode: 'group', // group,solo,monsterhunt
+    healMode: 'group',
+    healThresholdRatio: .75,
+    healThresholdRaw: 1200
+};
+
+states.warrior = { 
+    active: false,
+    events: false,
+    monsterhunt: false,
+    movement: true,
+    attack: true,
+    movementMode: 'farm',
+    attackMode: 'group', // group,solo,monsterhunt
+};
+states.mage = { 
+    active: false,
+    events: false,
+    monsterhunt: true,
+    movement: true,
+    attack: true,
+    movementMode: 'monsterhunt',
+    attackMode: 'monsterhunt', // group,solo,monsterhunt
+
+};
 
 //----------------
 // Priest Variables
 //
-const healMode = 'party';
+const healMode = 'group';
 const healThresholdRaw = 1500; // Minumum Lost HP required before Healing
 const healThresholdRatio = .75; // c.hp / c.max_hp -> 75 / 100 = .75
 party = [
@@ -65,6 +103,7 @@ if (character.ctype == "merchant") {
 
 if (character.ctype == "warrior") {
     logit("Loading Warrior " + character.name);
+    states[character.ctype].active = true;
     lootLoop();
     ripLoop();
     regenLoop();
@@ -74,6 +113,7 @@ if (character.ctype == "warrior") {
 }
 if (character.ctype == "priest") {
     logit("Loading Priest " + character.name);
+    states[character.ctype].active = true;
     lootLoop();
     ripLoop();
     regenLoop();
@@ -85,6 +125,7 @@ if (character.ctype == "priest") {
 }
 if (character.ctype == "mage") {
     logit("Loading Mage " + character.name);
+    states[character.ctype].active = true;
     lootLoop();
     ripLoop();
     regenLoop();
@@ -217,147 +258,39 @@ async function moveLoop() {
 			setTimeout(async () => { moveLoop() }, 250);
             return;
 		}
+
 		//------------------------
         // Event Logic
 		//------------------------
-        for (const key in parent.S) {
-            const data = parent.S[key];
-            if (!data.live) { continue; }
-            if (key == 'dragold' || key == 'icegolem' || key =='tiger' || key=='franky' || key == 'pinkgoo') { continue; }
-            // exclude special event, like 'halloween', or 'egghunt'
-            // they are not monster hunts, and require diff logic
-            if(typeof data !== "object")  // special events are string type
-                continue 
-            
-            set_message("Move E: " + key);
-            target = getTarget(key);
-
-            if(!target){
-                logit(data.map + " " + data.x + " " + data.y)
-                await smart_move({map:data.map, x:data.x, y:data.y})
-            }
-            else {
-                [cx, cy] = [character.x, cy = character.y];
-				[tx, ty] = [target.x, ty = target.y];
-
-                if (character.ctype == "Warrior")
-                    if (!can_attack('attack')) {
-                        move(cx + (tx - cx)/2, cy + (ty - cy)/2);
-                    }
-                
-                if (character.ctype == "Mage")
-                    move(cx + (tx - cx)+20, cy + (ty - cy)+ 20)
-
-                if (character.ctype == "Priest")
-                    move(cx + (tx - cx)-20, cy + (ty - cy)-20)
-            }
+        if (states[character.ctype].active && states[character.ctype].events) {
+            await doEvents();
             setTimeout(async () => { moveLoop() }, 250);
             return;
         }
+
         //------------------------
 		// Monster Hunt Logic
 		//------------------------
-        if (allowMonsterHunt && character.ctype == 'mage') {
-            if(!character.s.monsterhunt) {
-                set_message("MH Accept");
-                await (smart_move('monsterhunter'));
-				parent.socket.emit("monsterhunt");
-				logit ("Monster Hunt Accepted");
-                setTimeout(async () => { moveLoop() }, 250);
-				return;
-            }
-			else {
-
-				if (character.ctype == 'mage') {
-                    
-					mhTarget = character.s.monsterhunt.id;
-					mhCount = character.s.monsterhunt.c;
-					logit ("Starting Monster Hunt");
-					logit ("Target: " + mhTarget + " (" + mhCount + ")");
-                    if (monster_hunt_whitelist.includes(mhTarget)) {
-                        set_message("MH WIP");
-                        target = getTarget(mhTarget);
-                        if (!target) {
-                            await smart_move(mhTarget);
-                        }
-                        else {
-                            if (is_in_range(target, 'attack')) {
-
-                                if (mageAttackMode == "monsterhunt") {
-                                    await kiteLoop();
-                                }
-                            }
-                            else {
-                                [cx, cy] = [character.x, cy = character.y];
-                                [tx, ty] = [target.x, target.y];
-                                move(cx + (tx - cx)/2, cy + (ty - cy)/2);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        set_message("MH Cant");
-                    }
-				}
-                setTimeout(async () => { moveLoop() }, 250);
-				return;
-			}
-
+        if (states[character.ctype].active && states[character.ctype].monsterhunt) {
+            await doMonsterHunts();
+            setTimeout(async () => { moveLoop() }, 250);
+            return;
         }
+
 		//------------------------
 		//Farm Logic
 		//------------------------
-		if (moveMode == "farm") {
-			set_message("Farm");
-            //logit(character.name + ": Farming")
-			
-			// Move to location if we cannot target farmMob
-			//target = get_nearest_monster({"type": farmMob})
-            target = getTarget();
-			if (!target)
-				await smart_move(farmMob)
-			else {
-                [cx, cy] = [character.x, cy = character.y];
-				[tx, ty] = [target.x, target.y];
+        if (states[character.ctype].active && states[character.ctype].movementMode == 'farm') {
+            await doFarming();
+            setTimeout(async () => { moveLoop() }, 250);
+            return;
+        }
 
-                if (character.ctype == "warrior"){
-                    move(cx + (tx - cx)/2, cy + (ty - cy)/2);
-                }
-                
-                if (character.ctype == "mage"){
-                    if (mageAttackMode == 'group'){
-                        let tankObj = get_player(tank);
-                        let tankTarget = get_target_of(tankObj);
-                        if (tankTarget){
-                            [tx, ty] = [tankTarget.x, tankTarget.y];
-                            move(cx + (tx - cx) - 20, cy + (ty - cy) - 20);
-                        }
-                    }
-                    else if (mageAttackMode == 'solo') {
-                        if (!is_in_range(target, attack)) {
-                            move(cx + (tx - cx)/2, cy + (ty - cy)+10);
-                        }
-                    }
-                }
-                if (character.ctype == "priest"){
-                    let tankObj = get_player(tank);
-                    let tankTarget = get_target_of(tankObj);
-                    if (tankTarget){
-                        [tx, ty] = [tankTarget.x, tankTarget.y];
-                        move(cx + (tx - cx) + 20, cy + (ty - cy) - 20);
-                    }
-                }              
-            }
-		}
-		
-		if (moveMode == "phoenix") {
-
-		}
 	}
 	catch (e) {
         logit (character.name + ": Error: moveLoop()");
         logit(e);
-		}
+    }
 	setTimeout(async () => { moveLoop() }, 250);
 }
 
@@ -376,7 +309,7 @@ async function healLoop() {
         if (character.ctype != 'priest')
             return;
 
-        if (healMode == "party") {
+        if (healMode == "group") {
             var topPriority;
             var current;
             var previous;
