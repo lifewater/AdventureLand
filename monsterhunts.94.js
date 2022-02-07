@@ -46,7 +46,7 @@ async function doMonsterHunts(){
                         await smart_move(mhTarget);
                     }
                     else {
-                        if (is_in_range(target, 'attack')) {
+                        if (can_attack(target)) {
 
                             if (mageAttackMode == "monsterhunt") {
                                 await kiteLoop();
@@ -55,7 +55,7 @@ async function doMonsterHunts(){
                         else {
                             [cx, cy] = [character.x, cy = character.y];
                             [tx, ty] = [target.x, target.y];
-                            move(cx + (tx - cx)/2, cy + (ty - cy)/2);
+                            xmove(cx + (tx - cx)/2, cy + (ty - cy)/2);
                         }
                     }
                 }
