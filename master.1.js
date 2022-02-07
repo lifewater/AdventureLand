@@ -1,5 +1,6 @@
 load_code('codecostmeter');
 load_code('general');
+load_code('kite');
 
 const codeBase = 'master';
 
@@ -18,18 +19,20 @@ party = [
 //----------------
 // Mage Variables
 //
-const mageAttackMode = 'solo';  //group, solo
+const mageAttackMode = 'monsterhunt';  //group, solo, monsterhunt
+const monster_hunt_whitelist = ["arcticbee", "bee", "crab", "minimush", "frog", "squigtoad", "snake", "rat", "armadillo", "croc", "squig", "spider", "scorpion", "porcupine", "goo", "cgoo", "poisio", "tortoise","bat"]; 
+var avoidTypes = ["frog", "squigtoad", "osnake", "armadillo", "croc", "scorpion", "greenjr", "bigbird", "porcupine", "cgoo", "boar", "snowman", "poisio", "stoneworm", "jr", "crabx", "iceroamer","mole", "wolfie","xscorpion","mummy","skeletor","wolf"];
 
-//----------------
+//-----------------
 // Global Variables
 //
 const inventoryWhitelist = ['hpot1','mpot1', 'stand0', 'stand1', 'tracker', 'pickaxe', 'rod'];
 
 const farmMob = 'arcticbee';
 
-const moveMode = 'farm';
+const moveMode = '';
 
-const allowMonsterHunt = false;
+const allowMonsterHunt = true;
 
 var target;
 
@@ -254,24 +257,52 @@ async function moveLoop() {
         //------------------------
 		// Monster Hunt Logic
 		//------------------------
-        if (allowMonsterHunt) {
+        if (allowMonsterHunt && character.ctype == 'mage') {
             if(!character.s.monsterhunt) {
+                set_message("MH Accept");
                 await (smart_move('monsterhunter'));
 				parent.socket.emit("monsterhunt");
-				mhTarget = character.s.monsterhunt.id;
-				mhCount = character.s.monsterhunt.c;
 				logit ("Monster Hunt Accepted");
-				logit ("Target: " + mhTarget + " (" + mhCount + ")");
+                setTimeout(async () => { moveLoop() }, 250);
 				return;
             }
 			else {
-				mhTarget = character.s.monsterhunt.id;
-				mhCount = character.s.monsterhunt.c;
-				logit ("Starting Monster Hunt");
-				logit ("Target: " + mhTarget + " (" + mhCount + ")");
-				await smart_move(mhTarget);
+
+				if (character.ctype == 'mage') {
+                    
+					mhTarget = character.s.monsterhunt.id;
+					mhCount = character.s.monsterhunt.c;
+					logit ("Starting Monster Hunt");
+					logit ("Target: " + mhTarget + " (" + mhCount + ")");
+                    if (monster_hunt_whitelist.includes(mhTarget)) {
+                        set_message("MH WIP");
+                        target = getTarget(mhTarget);
+                        if (!target) {
+                            await smart_move(mhTarget);
+                        }
+                        else {
+                            if (is_in_range(target, 'attack')) {
+
+                                if (mageAttackMode == "monsterhunt") {
+                                    await kiteLoop();
+                                }
+                            }
+                            else {
+                                [cx, cy] = [character.x, cy = character.y];
+                                [tx, ty] = [target.x, target.y];
+                                move(cx + (tx - cx)/2, cy + (ty - cy)/2);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        set_message("MH Cant");
+                    }
+				}
+                setTimeout(async () => { moveLoop() }, 250);
 				return;
 			}
+
         }
 		//------------------------
 		//Farm Logic
@@ -410,10 +441,6 @@ async function attackLoop() {
             return;
 		}
 
-        if (target.dead){
-            setTimeout(async () => { attackLoop() }, Math.max(1, ms_to_next_skill("attack")));
-            return;
-        }
 
 		if (target) {
             if (character.ctype == "warrior") {
@@ -434,6 +461,12 @@ async function attackLoop() {
                     }
                 }
                 else if (mageAttackMode == 'solo') {
+                    if(is_in_range(target, "attack") && can_attack(target) && target) {
+                        await attack(target);
+                        reduce_cooldown("attack", Math.min(...parent.pings));
+                    }
+                }
+                else if (mageAttackMode == 'monsterhunt') {
                     if(is_in_range(target, "attack") && can_attack(target) && target) {
                         await attack(target);
                         reduce_cooldown("attack", Math.min(...parent.pings));
@@ -464,6 +497,10 @@ async function attackLoop() {
 //------------------------
 async function curseLoop() {
     try {
+        if (!target){
+            setTimeout(async () => { curseLoop() }, Math.max(1, ms_to_next_skill("curse")));
+            return;
+        }
 		let ToT = get_target_of(target);
 		let targethp = target.hp / target.max_hp;
 		
