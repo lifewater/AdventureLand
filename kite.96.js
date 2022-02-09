@@ -1,8 +1,8 @@
 //Extra range to add to a monsters attack range, to give a little more wiggle room to the algorithm.
-var rangeBuffer = 30;
+var rangeBuffer = 150;
 
 //How far away we want to consider monsters for
-var calcRadius = 130;
+var calcRadius = 100;
 
 //What types of monsters we want to try to avoid
 var avoidTypes = ["frog", "squigtoad", "snake", "osnake", "armadillo", "croc", "scorpion", "greenjr", "bigbird", "porcupine", "cgoo", "boar", "snowman", "poisio", "stoneworm", "jr", "crabx", "iceroamer", "goldenbat"];

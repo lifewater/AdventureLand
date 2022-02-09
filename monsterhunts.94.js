@@ -52,7 +52,7 @@ async function doMonsterHunts(){
                         else {
                             [cx, cy] = [character.real_x, cy = character.real_y];
                             [tx, ty] = [target.x, target.y];
-                            //xmove(cx + (tx - cx), cy + (ty - cy));
+                            await xmove(cx + (tx - cx), cy + (ty - cy));
                         }
                     }
                 }
