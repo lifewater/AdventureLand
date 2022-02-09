@@ -34,7 +34,6 @@ async function doMonsterHunts(){
                     set_message("MH Return");
                     await (smart_move('monsterhunter'));
                     parent.socket.emit("monsterhunt");	
-                    setTimeout(async () => { moveLoop() }, 250);
                     return;
                 }
                 //logit ("Starting Monster Hunt");
@@ -47,15 +46,13 @@ async function doMonsterHunts(){
                     }
                     else {
                         if (can_attack(target)) {
-
-                            if (mageAttackMode == "monsterhunt") {
-                                await kiteLoop();
-                            }
+                            await kiteLoop();
+                            return;
                         }
                         else {
-                            [cx, cy] = [character.x, cy = character.y];
+                            [cx, cy] = [character.real_x, cy = character.real_y];
                             [tx, ty] = [target.x, target.y];
-                            xmove(cx + (tx - cx)/2, cy + (ty - cy)/2);
+                            //xmove(cx + (tx - cx), cy + (ty - cy));
                         }
                     }
                 }

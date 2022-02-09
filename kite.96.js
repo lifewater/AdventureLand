@@ -11,7 +11,7 @@ var avoidPlayers = false;//Set to false to not avoid players at all
 var playerBuffer = 30;//Additional Range around players
 var avoidPlayersWhitelist = [];//Players want to avoid differently
 var avoidPlayersWhitelistRange = 30; //Set to null here to not avoid whitelisted players
-var playerRangeOverride = 65; //Overrides how far to avoid, set to null to use player range.
+var playerRangeOverride = 85; //Overrides how far to avoid, set to null to use player range.
 var playerAvoidIgnoreClasses = ["merchant"];//Classes we don't want to try to avoid
 
 //Tracking when we send movements to avoid flooding the socket and getting DC'd
