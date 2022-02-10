@@ -23,9 +23,11 @@ var drawDebug = true;
 async function kiteLoop()
 {
     try {
+        
         if(character.ctype == "merchant") return;
         if(character.ctype == "warrior") return;
         if(smart.moving) return
+        if (character.rip) return
         if(drawDebug)
         {
             clear_drawings();
@@ -49,7 +51,7 @@ async function kiteLoop()
         if(!avoiding && goal != null)
         {
             if(lastMove == null || new Date() - lastMove > 100) {
-                move(goal.x, goal.y);
+                await move(goal.x, goal.y);
                 lastMove = new Date();
             }
         }
@@ -61,7 +63,7 @@ async function kiteLoop()
     setTimeout(async () => { kiteLoop() }, 25);
 }
 
-function avoidMobs(goal)
+async function avoidMobs(goal)
 {
 	var noGoal = false;
 	
@@ -176,7 +178,7 @@ function avoidMobs(goal)
 		if(lastMove == null || new Date() - lastMove > 100)
 		{
 			lastMove = new Date();
-			move(movePoint.x, movePoint.y);
+			await move(movePoint.x, movePoint.y);
 		}
 		
 		if(drawDebug)

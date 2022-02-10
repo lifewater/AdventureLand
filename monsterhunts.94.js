@@ -1,3 +1,5 @@
+
+
 character.on("target_hit", (data) => {
     if(states[character.ctype].monsterhunt == true){
         if (data.kill && character.s.monsterhunt.c) {
@@ -66,7 +68,7 @@ async function doMonsterHunts(){
         }
     }
     catch(e) {
-        logit (character.name + ": Error: DoMonsterHunt()");
+        logit(character.name + ": Error: DoMonsterHunt()");
         logit(e);       
     }
 }

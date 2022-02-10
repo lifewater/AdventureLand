@@ -3,7 +3,9 @@ load_code('general');
 load_code('kite');
 load_code('events');
 load_code('monsterhunts');
-load_code('farming')
+load_code('farming');
+load_code('merchant_functions');
+
 
 const codeBase = 'master';
 const states = {};
@@ -85,10 +87,43 @@ managePartyLoop();
 // Merchant Variables
 //
 var items_to_compound = [];
-var compound_list = {};
 var upgradeables = {};
 var compoundables = {};
 var returnHome = "";
+
+var upgrade_whitelist = {
+    "wbasher": 7,
+	"candycanesword": 7,
+	"wattire": 7,
+	"wcap": 7,
+	"wshoes": 7,
+	"wbreeches": 7,
+	"wgloves":7,
+	"blade": 8,
+	"xmace": 7,
+	"gcape": 7,
+	"warmscarf": 7,
+	"coat1": 7,
+	"gloves1": 7,
+	"helmet1": 7,
+	"pants1": 7,
+	"shoes1": 7,
+	"quiver": 7,
+	"fireblade": 7,
+	"firestaff": 7,
+	"frankypants": 5,
+	"helmet": 7,
+	"shoes": 7,
+	"gloves":7,
+	"pants":7
+};
+var compound_whitelist = [
+	'hpamulet', 'hpbelt', 'ringsj', 
+	'strearring', 'intearring', 'dexearring', 'vitearring',
+	'strring', 'intring', 'dexring', 'vitring',
+	'wbookhs',
+	'stramulet', 'intamulet', 'dexamulet'
+];
 
 
 if (character.ctype == "merchant") {
@@ -97,10 +132,11 @@ if (character.ctype == "merchant") {
     lootLoop();
     ripLoop();
     regenLoop();
-
-    //merchantLoop();
+	merchantLoop();
 }
 
+
+// Main loop
 if (character.ctype == "warrior") {
     logit("Loading Warrior " + character.name);
     states[character.ctype].active = true;
@@ -295,74 +331,7 @@ async function moveLoop() {
 }
 
 
-//-------------------------------------------
-// Healing Loop
-//-------------------------------------------
-async function healLoop() {
-    try {
-        if (character.rip) {
-			setTimeout(async () => { healLoop() }, 100);
-            return;
-		}
 
-        // if your not a healer get out of here
-        if (character.ctype != 'priest')
-            return;
-
-        if (healMode == "group") {
-            var topPriority;
-            var current;
-            var previous;
-            
-            // Load up party data w/ HP info.
-            for (node in party) {
-                partyMember = get_player(party[node].name);
-                if (!partyMember)
-                    continue;
-                party[node].lost_hp = partyMember.max_hp - partyMember.hp;
-                party[node].ratio_hp = partyMember.hp / partyMember.max_hp;
-            }
-            
-            // Find the highest priority target
-            for (node in party) {
-                
-                if (topPriority === undefined) {
-                    topPriority = node;
-                    
-                    previous = party[node];
-                    continue;
-                }
-                
-                if (previous) {
-                    current = party[node];
-                    if (current.ratio_hp < previous.ratio_hp) {
-                        topPriority = node;
-                    }
-                    previous = current;
-                }
-                
-            }
-            
-            //log ("Priorty: " + party[topPriority].name);
-            
-            // Finally, if the top priority heal target
-            // has lost at least healThresholdRaw hp
-            // then they get a heal
-            if (party[topPriority].lost_hp > healThresholdRaw) {
-                healtarget = get_player(party[topPriority].name);
-                change_target(healtarget);
-                await heal(healtarget);
-                logit("Healed " + healtarget.name);
-                reduce_cooldown("heal", Math.min(parent.pings));
-            }
-        }
-	}
-	catch (e) {
-        logit (character.name + ": Error: healLoop()");
-        logit (e);
-	}
-	setTimeout(async () => { healLoop() }, Math.max(1, ms_to_next_skill("heal")));
-}
 
 //------------------------
 // Attack Loop
@@ -376,8 +345,9 @@ async function attackLoop() {
 
 
 		if (target) {
+
             if (character.ctype == "warrior") {
-			    if(is_in_range(target, "attack") && can_attack(target)) {
+			    if(!is_on_cooldown('attack') && can_attack(target)) {
 				    await attack(target);
 				    reduce_cooldown("attack", Math.min(...parent.pings));
 			    }
@@ -388,19 +358,19 @@ async function attackLoop() {
                     let tankObj = get_player(tank);
                     let tankTarget = get_target_of(tankObj);
                     let targetsTarget = get_target_of(tankTarget);
-                    if(is_in_range(tankTarget, "attack") && can_attack(tankTarget) && tankTarget) {
+                    if(!is_on_cooldown('attack') && can_attack(tankTarget) && tankTarget) {
                         await attack(tankTarget);
                         reduce_cooldown("attack", Math.min(...parent.pings));
                     }
                 }
                 else if (mageAttackMode == 'solo') {
-                    if(is_in_range(target, "attack") && can_attack(target) && target) {
+                    if(!is_on_cooldown('attack') && can_attack(target) && target) {
                         await attack(target);
                         reduce_cooldown("attack", Math.min(...parent.pings));
                     }
                 }
                 else if (mageAttackMode == 'monsterhunt') {
-                    if(is_in_range(target, "attack") && can_attack(target) && target) {
+                    if(!is_on_cooldown('attack') &&  can_attack(target) && target) {
                         await attack(target);
                         reduce_cooldown("attack", Math.min(...parent.pings));
                     }
@@ -411,7 +381,7 @@ async function attackLoop() {
                 let tankObj = get_player(tank);
                 let tankTarget = get_target_of(tankObj);
                 let targetsTarget = get_target_of(tankTarget)
-			    if(is_in_range(tankTarget, "attack") && can_attack(tankTarget) && tankTarget) {
+			    if(!is_on_cooldown('attack') && can_attack(tankTarget) && tankTarget) {
 				    await attack(tankTarget);
 				    reduce_cooldown("attack", Math.min(...parent.pings));
 			    }
@@ -425,419 +395,7 @@ async function attackLoop() {
 	setTimeout(async () => { attackLoop() }, Math.max(1, ms_to_next_skill("attack")));
 }
 
-//------------------------
-// Curse Loop
-//------------------------
-async function curseLoop() {
-    try {
-        if (!target){
-            setTimeout(async () => { curseLoop() }, Math.max(1, ms_to_next_skill("curse")));
-            return;
-        }
-		let ToT = get_target_of(target);
-		let targethp = target.hp / target.max_hp;
-		
-		if (!target.cursed && !is_on_cooldown('curse') && ToT && targethp > .80){
-			change_target(target);
-			use_skill('curse', target);
-		}
-    }
-	catch (e) {
-            console.log ("Error Encountered in curseLoop()");
-            console.error(e)
-	}
-	setTimeout(async () => { curseLoop() }, Math.max(1, ms_to_next_skill("curse")));
-}
 
 
-function on_party_invite(name){
-    if (name == myPartyLeader && character.name != myPartyLeader){
-        accept_party_invite(name)
-    }
-}
 
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-// Merchant things, needs to be factored into the rest of this code.
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-
-
-async function merchantLoop() {
-	try {
-
-		if (locate_item("whiteegg") != -1)
-            destroy(locate_item("whiteegg")); 
-	
-		if (character.q.upgrade || character.q.compound || smart.moving) {
-            setTimeout(async () => { merchantLoop() }, 250);
-            return;
-        }
-
-		
-		upgradables = getUpgradableItems();
-        compoundables = getCompoundableItems();
-
-		
-		if (!is_on_cooldown('fishing')) {
-			set_message("Fishin");
-			close_stand();
-			await goFish();
-			returnHome = true;
-		}
-		else if (!is_on_cooldown('mining')) {
-			set_message("Minin");
-			close_stand();
-			await goMine();
-			returnHome = true;
-		}
-		else
-		{
-			if (returnHome)
-			{
-				set_message("Nothin");
-				log("returnHome(" + returnHome + ")");
-				await smart_move({map:'main', x:-143, y:-56});
-				open_stand();
-				returnHome = false;
-			}
-		}
-		
-		if (mode == "compound") {
-			if (character.q.compound) { return; }
-			set_message("Compounding");
-			buildCompoundList();
-        	await compoundStuff2();
-        	compound_list = {};
-		}
-		else if (mode == "upgrade") {
-			if (character.q.upgrade) { return; }
-			set_message("Upgrading");
-			await upgradeItem2();
-
-   		 }
-		else if (mode == 'batchupgrade') {
-			//log(character.esize);
-			batchUpgrade();
-		}
-	}
-	catch (e) {
-		console.log ("Error Encountered in mainLoop()");
-		console.error(e)
-		}
-	setTimeout(async () => { merchantLoop() }, 250);
-}
-
-async function goFish() {
-	try {
-		//log("goFish()");
-		spot = { map: "main", x: -1368, y: -82 };
-		currentWeapon = character.slots.mainhand;
-		fishingrodSlot = locate_item("rod"); // returns slotnum OR -1 if cannot find
-	
-	
-		if (currentWeapon == null || currentWeapon.name != "rod" ) {
-			log ("Fishing Rod not equipped");
-			if (fishingrodSlot == -1) {
-				log ("You cant fish without a rod.")
-				return;
-			}
-			else {
-				log("Equipping Fishing Rod");
-				equip(fishingrodSlot);
-			}
-		}
-
-		if (smart.moving) 
-			return;
-	
-		if (character.x != spot.x && character.y != spot.y) 
-		{
-			log ("Moving to Fishing Spot")
-			await smart_move({map: spot.map, x: spot.x, y: spot.y});
-		}
-	
-
-		if (character.mp > 120) {
-			if (!character.c.fishing) {
-				log("Fishin!");
-				use_skill('fishing');
-			}
-		}
-	}
-	catch (e) {
-		console.log ("Error Encountered in goFish()");
-		console.error(e)
-	}
-}
-
-//--------------------------------------------------
-// Mining
-//--------------------------------------------------
-
-async function goMine() {
-	try {
-		spot = { map: 'tunnel', x: 280, y: -95 };
-		currentWeapon = character.slots.mainhand.name;
-		pickaxeSlot = locate_item("pickaxe"); // returns slotnum OR -1 if cannot find
-	
-		if (currentWeapon == null || currentWeapon != "pickaxe" || character.slots.mainhand.name == null) {
-			log ("Pickaxe not equipped");
-			if (pickaxeSlot == -1) {
-				log ("You cant mine without a pickaxe.")
-				return;
-			}
-			else
-			{
-				log("Equipping Pickaxe");
-				equip(pickaxeSlot);
-			}
-		}
-	
-		if (smart.moving) 
-			return;	
-
-		if (character.x != spot.x && character.y != spot.y) {
-			log ("Moving to Mining Spot")
-			await smart_move({map: spot.map, x: spot.x, y: spot.y});
-		}
-		
-		if (character.mp > 120) {
-			if (!character.c.mining) {
-				log("Minin!");
-				use_skill('mining');
-			}
-		}
-	}
-	catch (e) {
-		console.log ("Error Encountered in goMine()");
-		console.error(e)
-	}
-}
-
-
-//--------------------------------------
-//----------- Upgrade Stuff -------------
-//--------------------------------------
-async function upgradeItem2() {
-	try {
-		//log("UpgradeItem2()")
-		cx = character.x;
-		cy = character.y;
-		CueX = G.maps.main.npcs[0].position[0];
-		CueY = G.maps.main.npcs[0].position[1];
-		ScrollX = G.maps.main.npcs[2].position[0];
-		ScrollY = G.maps.main.npcs[2].position[1];
-		d1 = distanceFromEntity(cx,cy,CueX,CueY);
-		d2 = distanceFromEntity(cx,cy,ScrollX,ScrollY);
-	
-	
-		if (d1 > 150 && d2 > 150)
-			return;
-		
-    	var max_inventory_slots = 42;
-	
-		// Loop through each  inventory slot
-    	for (var i = 0; i < max_inventory_slots; i++) {
-			if (character.q.upgrade) { return; }
-		
-        	let item = character.items[i];
-
-		
-			// skip slot if inventory slot is empty
-			if (!item) { continue; }
-		
-			// if the current item is in my upgrade whitelist
-			// AND below the max upgrade level I've set, then
-			//proceed with the upgrade
-        	if( inUpgradeWhitelist(item, upgrade_whitelist)  && item.level < upgrade_whitelist[item.name] ) {
-			
-				var igrade = item_grade(item)
-				log("Attempting " + item.name + " Slot: [" +i+ "]");
-			
-     	   		if(!checkScrolls("scroll" + igrade)) { 
-					log("Buy Scroll");
-        	    	await buy_with_gold("scroll" + igrade, 1);
-				}
-			
-				if(typeof character.s["massproductionpp"] === 'undefined') 
-					use_skill("massproductionpp");
-			
-				await upgrade(i, locate_item(("scroll" + igrade))).then(
-					function(data) {
-						if (data.success)
-							log ("Upgraded: " + item.name + " to " + data.level);
-						else 
-							log("Upgrade failed, item lost.");
-            		});
-			}
-    	}
-	}
-	catch (e) {
-		console.log ("Error Encountered in upgradeItem(2)");
-		console.error(e)
-	}
-}
-
-//--------------------------------------
-//----------- Compound Stuff -------------
-//--------------------------------------
-
-async function compoundStuff2()
-{
-	try {
-		//log("CompoundStuff2()");
-		cx = character.x;
-		cy = character.y;
-		CueX = G.maps.main.npcs[0].position[0];
-		CueY = G.maps.main.npcs[0].position[1];
-		ScrollX = G.maps.main.npcs[2].position[0];
-		ScrollY = G.maps.main.npcs[2].position[1];
-		d1 = distanceFromEntity(cx,cy,CueX,CueY);
-		d2 = distanceFromEntity(cx,cy,ScrollX,ScrollY);
-	
-		if (d1 > 150 && d2 > 150)
-			return;
-	
-	
-		if (items_to_compound.length == 3) {
-			let item = character.items[items_to_compound[0]];
-			let igrade = item_grade(item)
-		
-			log("Going to compound")
-    	    if(!checkScrolls("cscroll" + igrade)){ 
-				log("Buy Scroll: cscroll" + igrade);
-				await buy_with_gold("cscroll" + igrade, 1);
-			}
-		
-			if (!is_on_cooldown("massproductionpp")){
-				use_skill("massproductionpp");
-			}
-		
-	        await compound(
-    	        items_to_compound[0], 
-        	    items_to_compound[1], 
-            	items_to_compound[2],
-            	locate_item("cscroll" + igrade)
-            	).then(function(data){
-            	if (data.success){ log ("Compounded to level "+ data.level) }
-            	else { log("Compound failed.") }
-            	});
-        	items_to_compound = [];
-   		}
-    	else {
-			//log("Building list of items to compound");
-    	    for (let i in compound_list) {
-        	    for (let j in compound_list[i]) {
-            	    if ( compound_list[i][j].length >= 3 ) {
-						//log("Meet criteria: " + compound_list[i][j].length)
-						if (items_to_compound.length != 3) {
-							for (let k=0; k<3; k++){
-								items_to_compound.push(compound_list[i][j][k]);
-							}
-						}
-						//log("Iteration: "+items_to_compound);
-						//log("Length: "+items_to_compound.length);
-						break;
-                	}
-					// Possibly nothing left to compound?
-					//else { continue; }
-        	    }
-       		}
-    	}
-	}
-	catch (e) {
-		console.log ("Error Encountered in compoundStuff2()");
-		console.error(e)
-	}
-}
-
-function getCompoundableItems()
-{
-    var max_inventory_slots = 42;
-
-    for (var i=0; i<max_inventory_slots; i++)
-    {
-        item = character.items[i];
-		
-        //skip empty inventory slot
-        if (!item) { continue; }
-
-		// if the item is in our specific whitelist
-        if (inCompoundWhiteList(item.name, compound_whitelist))
-        {
-			//log(item.name +","+ item.level +","+ i);
-			// just to save on typing
-			let N = item.name;
-			let L = item.level;
-			
-			// if the hash's havent started yet,
-			// we need to initialize blank ones
-			// otherwise we will get undefined
-			if ( !compound_list.hasOwnProperty(N) )
-				compound_list[N] = {};
-			if ( !compound_list[N].hasOwnProperty(L) )
-				compound_list[N][L] = [];
-			
-			// Add to the list
-			compound_list[N][L].push(i);
-        }
-    }
-    return compound_list;
-}
-
-// currently unused?
-function getUpgradeableItems() {
-	var upgrade_list = {};
-	for (let i = 0; i < 42; i++) {
-		let item = character.items[i];
-		if (!item) { continue; }
-		
-		if( inUpgradeWhitelist(item, upgrade_whitelist)  && item.level < upgrade_whitelist[item.name] ) {
-			let N = item.name;
-			let L = item.level;
-			
-			if ( !upgrade_list.hasOwnProperty(N) )
-				upgrade_list[N] = {};
-			if ( !upgrade_list[N].hasOwnProperty(L) )
-				upgrade_list[N][L] = [];
-			
-			upgrade_list[N][L].push(i);
-		}
-	}
-	return upgrade_list;
-}
-
-function checkScrolls(scroll) {
-	let location = locate_item(scroll);
-	if (location > -1)
-		return true;
-	else
-		return false;
-}
-
-function inUpgradeWhitelist(item, list)
-{
-	if ( list.hasOwnProperty(item.name) )
-		return true;
-	
-	return false;
-
-}
-
-function inCompoundWhiteList(item, list)
-{
-	for ( var i=0; i<list.length; i++ )
-	{
-		if (item == list[i])
-			return true;
-	}
-	return false;
-}
