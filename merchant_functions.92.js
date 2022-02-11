@@ -11,11 +11,11 @@ async function merchantLoop() {
 
 		upgradeables = getUpgradeableItems();
 		upgradeLength = Object.keys(upgradeables).length;
+        console.log("Upgradable: " + upgradeLength)
 		
         compoundables = getCompoundableItems();
 		compoundLength = Object.keys(compoundables).length;
-		
-		
+		console.log("Compoundable: " + compoundLength)
 		
 		if (upgradeLength > 0) {
 			set_message("Upgrading");
@@ -259,20 +259,27 @@ function getCompoundableItems()
 			compound_list[N][L].push(i);
         }
     }
-	
 	// Since we can only compound items in groups of 3
 	// lets remove the lists of items less than 3 in size
 	// so we have a clean compound list of ONLY actual
 	// compoundable items
 	// Note: This loop will be cancerous.
 	for (i in compound_list) {
+        //console.log ("ItemType: " + i);
 		for (j in compound_list[i]) {
-			cItemCount = Object.values(compound_list[i][j]).length;
+            let cKeyCount = Object.keys(compound_list[i]).length;
+			let cItemCount = Object.values(compound_list[i][j]).length;
+            //console.log ("ItemLevel: " + j + " -> " + cItemCount);
 			if(cItemCount < 3) {
 				compound_list[i][j] = [];
 				delete compound_list[i][j];
-				delete compound_list[i];
+                //continue;
+                cKeyCount--;
 			}
+            if(cKeyCount == 0){
+                delete compound_list[i];
+            }
+
 		}
 	}
 	

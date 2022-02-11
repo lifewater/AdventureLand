@@ -115,7 +115,12 @@ var upgrade_whitelist = {
 	"helmet": 7,
 	"shoes": 7,
 	"gloves":7,
-	"pants":7
+	"pants":7,
+	"tigerhelmet":7,
+	"tigershield":7,
+    "mmgloves":5,
+    "mmpants":5,
+    "mmarmor":5
 };
 var compound_whitelist = [
 	'hpamulet', 'hpbelt', 'ringsj', 
@@ -397,5 +402,11 @@ async function attackLoop() {
 
 
 
-
+function on_party_invite(name) {
+    if (character.ctype != "merchant") {
+        log("Party invite from " + name);
+        if (name == 'Bezos')
+            accept_party_invite(name);
+    }
+}
 
