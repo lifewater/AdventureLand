@@ -51,7 +51,7 @@ async function healLoop() {
                 
             }
             
-            log ("Priorty: " + party[topPriority].name);
+            //log ("Priorty: " + party[topPriority].name);
             
             // Finally, if the top priority heal target
             // has lost at least healThresholdRaw hp
