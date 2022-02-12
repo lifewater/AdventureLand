@@ -11,11 +11,11 @@ async function merchantLoop() {
 
 		upgradeables = getUpgradeableItems();
 		upgradeLength = Object.keys(upgradeables).length;
-        console.log("Upgradable: " + upgradeLength)
+        //console.log("Upgradable: " + upgradeLength)
 		
         compoundables = getCompoundableItems();
 		compoundLength = Object.keys(compoundables).length;
-		console.log("Compoundable: " + compoundLength)
+		//console.log("Compoundable: " + compoundLength)
 		
 		if (upgradeLength > 0) {
 			set_message("Upgrading");

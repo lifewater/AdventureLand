@@ -1,6 +1,3 @@
-const myParty = ['Dough', 'LifeWater', 'Chasun', 'Bezos'];
-const myPartyLeader = "Bezos";
-
 setupQData()
 
 

@@ -5,6 +5,7 @@ load_code('events');
 load_code('monsterhunts');
 load_code('farming');
 load_code('merchant_functions');
+load_code('priest_functions')
 
 
 const codeBase = 'master';
@@ -21,7 +22,8 @@ states.priest = {
     attackMode: 'group', // group,solo,monsterhunt
     healMode: 'group',
     healThresholdRatio: .75,
-    healThresholdRaw: 1200
+    healThresholdRaw: 1200,
+    grouphealThreshold: .50
 };
 
 states.warrior = { 
@@ -47,9 +49,11 @@ states.mage = {
 //----------------
 // Priest Variables
 //
-const healMode = 'group';
-const healThresholdRaw = 1500; // Minumum Lost HP required before Healing
-const healThresholdRatio = .75; // c.hp / c.max_hp -> 75 / 100 = .75
+//const healMode = 'group';
+//const healThresholdRaw = 1500; // Minumum Lost HP required before Healing
+//const healThresholdRatio = .75; // c.hp / c.max_hp -> 75 / 100 = .75
+const myParty = ['Dough', 'LifeWater', 'Chasun', 'Bezos'];
+const myPartyLeader = "Bezos";
 party = [
     { name: "Dough",     ratio_hp: 0, lost_hp: null	},
 	{ name: "LifeWater", ratio_hp: 0, lost_hp: null	},
@@ -68,7 +72,7 @@ var avoidTypes = ["frog", "squigtoad", "osnake", "armadillo", "croc", "scorpion"
 //
 const inventoryWhitelist = ['hpot1','mpot1', 'stand0', 'stand1', 'tracker', 'pickaxe', 'rod'];
 
-const farmMob = 'arcticbee';
+const farmMob = 'bigbird';
 
 const moveMode = '';
 
@@ -103,10 +107,10 @@ var upgrade_whitelist = {
 	"xmace": 7,
 	"gcape": 7,
 	"warmscarf": 7,
-	"coat1": 7,
-	"gloves1": 7,
-	"helmet1": 7,
-	"pants1": 7,
+	"coat1": 8,
+	"gloves1": 8,
+	"helmet1": 8,
+	"pants1": 8,
 	"shoes1": 7,
 	"quiver": 7,
 	"fireblade": 7,
@@ -120,7 +124,12 @@ var upgrade_whitelist = {
 	"tigershield":7,
     "mmgloves":5,
     "mmpants":5,
-    "mmarmor":5
+    "mmarmor":5,
+    "harmor":6,
+    "hpants":6,
+    "hgloves":6,
+    "hboots":6,
+	"hhelmet":6
 };
 var compound_whitelist = [
 	'hpamulet', 'hpbelt', 'ringsj', 
@@ -236,7 +245,8 @@ async function lootLoop() {
 async function ripLoop() {
 	try {
 		if (character.rip)
-			respawn()
+            set_message("Dead");
+			respawn();
 	}
 	catch (e) {
 		logit ("Error Encountered ripLoop()");
@@ -369,12 +379,19 @@ async function attackLoop() {
                     }
                 }
                 else if (mageAttackMode == 'solo') {
+                    if (is_on_cooldown('attack')) {
+                        use_skill('zapperzap');
+                    }
                     if(!is_on_cooldown('attack') && can_attack(target) && target) {
                         await attack(target);
                         reduce_cooldown("attack", Math.min(...parent.pings));
                     }
+
                 }
                 else if (mageAttackMode == 'monsterhunt') {
+                    if (is_on_cooldown('attack')) {
+                        use_skill('zapperzap');
+                    }
                     if(!is_on_cooldown('attack') &&  can_attack(target) && target) {
                         await attack(target);
                         reduce_cooldown("attack", Math.min(...parent.pings));

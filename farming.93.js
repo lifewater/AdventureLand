@@ -31,9 +31,11 @@ async function doFarming() {
             if (character.ctype == "priest"){
                 let tankObj = get_player(tank);
                 let tankTarget = get_target_of(tankObj);
+
                 if (tankTarget){
                     [tx, ty] = [tankTarget.x, tankTarget.y];
-                    move(cx + (tx - cx) + 20, cy + (ty - cy) - 20);
+                    move(cx + (tx - cx) - 20, cy + (ty - cy) - 20);
+                    //kiteLoop();
                 }
             }              
         }
