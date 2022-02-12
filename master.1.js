@@ -315,6 +315,11 @@ async function moveLoop() {
 			setTimeout(async () => { moveLoop() }, 250);
             return;
 		}
+        if (smart.moving) {
+            setTimeout(async () => { moveLoop() }, 250);
+            return;     
+        }
+
 
         //------------------------
         // Event Logic
@@ -337,7 +342,7 @@ async function moveLoop() {
             }
         }
         else {
-            if (character.s.monsterhunt.ms !== undefined)
+            if (typeof character.s.monsterhunt !== undefined)
                 states[character.ctype].monsterhuntSkipTimer == character.s.monsterhunt.ms;
             else
                 states[character.ctype].monsterhuntSkipTimer == 0;

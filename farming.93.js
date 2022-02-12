@@ -1,5 +1,8 @@
 async function doFarming() {
     try {
+        if(smart.moving)
+            return;
+            
         set_message("Farm");
 
         target = getTarget();
@@ -22,7 +25,7 @@ async function doFarming() {
                         move(cx + (tx - cx) - 20, cy + (ty - cy) - 20);
                     }
                 }
-                else if (mageAttackMode == 'solo') {
+                else if (states.mage.attackMode == 'solo') {
                     if (!is_in_range(target, attack)) {
                         move(cx + (tx - cx)/2, cy + (ty - cy)+10);
                     }
@@ -35,7 +38,6 @@ async function doFarming() {
                 if (tankTarget){
                     [tx, ty] = [tankTarget.x, tankTarget.y];
                     move(cx + (tx - cx) - 20, cy + (ty - cy) - 20);
-                    //kiteLoop();
                 }
             }              
         }
