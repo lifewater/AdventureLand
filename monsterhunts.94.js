@@ -61,6 +61,12 @@ async function doMonsterHunts(){
                 else
                 {
                     set_message("MH Cant");
+                    if (character.s.monsterhunt.ms) {
+                        states[character.ctype].monsterhuntSkipTimer = character.s.monsterhunt.ms;
+                    }
+                    //else {
+                    //    states[character.ctype].monsterhuntSkipTimer = 0;
+                    //}
                 }
             }
             //setTimeout(async () => { moveLoop() }, 250);

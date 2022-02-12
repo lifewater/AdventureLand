@@ -14,7 +14,7 @@ async function doFarming() {
             }
             
             if (character.ctype == "mage"){
-                if (mageAttackMode == 'group'){
+                if (states.mage.attackMode == 'group'){
                     let tankObj = get_player(tank);
                     let tankTarget = get_target_of(tankObj);
                     if (tankTarget){

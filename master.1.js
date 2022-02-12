@@ -15,6 +15,8 @@ states.priest = {
     active: false,
     events: false,
     monsterhunt: false,
+    farm: true,
+    monsterhuntSkipTimer: 0,
     movement: true,
     attack: true,
     heal: true,
@@ -30,19 +32,23 @@ states.warrior = {
     active: false,
     events: false,
     monsterhunt: false,
+    farm: true,
+    monsterhuntSkipTimer: 0,
     movement: true,
     attack: true,
     movementMode: 'farm',
-    attackMode: 'group', // group,solo,monsterhunt
+    attackMode: 'group' // group,solo,monsterhunt
 };
 states.mage = { 
     active: false,
     events: false,
     monsterhunt: true,
+    farm: true,
+    monsterhuntSkipTimer: 0,
     movement: true,
     attack: true,
     movementMode: 'monsterhunt',
-    attackMode: 'monsterhunt', // group,solo,monsterhunt
+    attackMode: 'monsterhunt' // group,solo,monsterhunt
 
 };
 
@@ -310,10 +316,10 @@ async function moveLoop() {
             return;
 		}
 
-		//------------------------
+        //------------------------
         // Event Logic
 		//------------------------
-        if (states[character.ctype].active && states[character.ctype].events) {
+        if (states[character.ctype].events) {
             await doEvents();
             setTimeout(async () => { moveLoop() }, 250);
             return;
@@ -322,16 +328,26 @@ async function moveLoop() {
         //------------------------
 		// Monster Hunt Logic
 		//------------------------
-        if (states[character.ctype].active && states[character.ctype].monsterhunt) {
-            await doMonsterHunts();
-            setTimeout(async () => { moveLoop() }, 250);
-            return;
+        if (states[character.ctype].monsterhuntSkipTimer == 0) {
+            if (states[character.ctype].monsterhunt) {
+                states[character.ctype].attackMode = "monsterhunt";
+                await doMonsterHunts();
+                setTimeout(async () => { moveLoop() }, 250);
+                return;
+            }
+        }
+        else {
+            if (character.s.monsterhunt.ms !== undefined)
+                states[character.ctype].monsterhuntSkipTimer == character.s.monsterhunt.ms;
+            else
+                states[character.ctype].monsterhuntSkipTimer == 0;
         }
 
 		//------------------------
 		//Farm Logic
 		//------------------------
-        if (states[character.ctype].active && states[character.ctype].movementMode == 'farm') {
+        if (states[character.ctype].farm) {
+            states[character.ctype].attackMode = "group";
             await doFarming();
             setTimeout(async () => { moveLoop() }, 250);
             return;
@@ -360,8 +376,24 @@ async function attackLoop() {
 
 
 		if (target) {
-
             if (character.ctype == "warrior") {
+
+                for (id in parent.entities){
+                    let entity = parent.entities[id];
+
+                    if(entity.type == "monster" && can_attack(entity)) {
+                        if(entity.target == 'Chasun' || entity.target == 'LifeWater'){
+                            if (!is_on_cooldown('taunt')){
+                                let member = get_player(entity.target);
+                                let t = get_nearest_monster({ target: member });
+                                use_skill('taunt',t);
+                                console.log("Taunted off " + member.name);
+                                reduce_cooldown("taunt", Math.min(...parent.pings));
+                            }
+                        }
+                    }
+
+                }
 			    if(!is_on_cooldown('attack') && can_attack(target)) {
 				    await attack(target);
 				    reduce_cooldown("attack", Math.min(...parent.pings));
@@ -369,7 +401,7 @@ async function attackLoop() {
             }
 
             if (character.ctype == "mage") {
-                if (mageAttackMode == 'group') {
+                if (states.mage.attackMode == 'group') {
                     let tankObj = get_player(tank);
                     let tankTarget = get_target_of(tankObj);
                     let targetsTarget = get_target_of(tankTarget);
@@ -378,7 +410,7 @@ async function attackLoop() {
                         reduce_cooldown("attack", Math.min(...parent.pings));
                     }
                 }
-                else if (mageAttackMode == 'solo') {
+                else if (states.mage.attackMode == 'solo') {
                     if (is_on_cooldown('attack')) {
                         use_skill('zapperzap');
                     }
@@ -388,7 +420,7 @@ async function attackLoop() {
                     }
 
                 }
-                else if (mageAttackMode == 'monsterhunt') {
+                else if (states.mage.attackMode == 'monsterhunt') {
                     if (is_on_cooldown('attack')) {
                         use_skill('zapperzap');
                     }

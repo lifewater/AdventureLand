@@ -24,11 +24,11 @@ async function kiteLoop()
 {
     try {
         
-        if(character.ctype == "merchant") return;
-        if(character.ctype == "warrior") return;
-        if(smart.moving) return
+        if (character.ctype == "merchant") return;
+        if (character.ctype == "warrior") return;
+        if (smart.moving) return
         if (character.rip) return
-        if(drawDebug)
+        if (drawDebug)
         {
             clear_drawings();
         }
